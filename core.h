@@ -3,15 +3,12 @@
 
 //QT
 #include <QObject>
+#include <QHash>
 #include <QThread>
-#include <QByteArray>
-#include <QUrl>
-#include <QTimer>
-#include <QRandomGenerator>
 
 //My
-#include "httpsslquery.h"
-#include "mexc.h"
+#include "config.h"
+#include "stockexchange.h"
 
 namespace TraidingCatBot
 {
@@ -26,29 +23,27 @@ public:
     ~Core();
 
 public slots:
-    void start();
-
-private slots:
-    void getAnswerHTTP(const QByteArray& answer, quint64 id);
-    void errorOccurredHTTP(QNetworkReply::NetworkError code, const QString& msg, quint64 id);
-
-    void detectKLine(const QString& symbol, const TraidingCatBot::Mexc::KLine& kline);
+    void start();      //запуск работы
 
 signals:
-    void finished();
-    void sendHTTP(const QUrl& url, TraidingCatBot::HTTPSSLQuery::RequestType type,
-                  const QByteArray& data, const TraidingCatBot::HTTPSSLQuery::Headers& headers, quint64 id);
+    void stopAll();    //остановка
 
 private:
-    void sendRequest();
-    void makeMoney(const QStringList& symbolsList);
+    void loadStockExchenge();
 
 private:
-    QThread *_HTTPSSLQueryThread = nullptr;
-    quint64 _currentRequestID = 0;
-    QRandomGenerator *_rg = nullptr;
+    struct StockExchangeInfo
+    {
+        StockExchange *stockEnchange = nullptr;
+        QThread* thread = nullptr;
+    };
 
-    QHash<QString, Mexc*> _money;
+private:
+    Config *_cnf = nullptr;                             //Конфигурация
+
+    QThread *_HTTPSSLQueryThread = nullptr;            //поток обработки HTTP запросов
+
+    QHash<QString, StockExchangeInfo> _stockExchanges; //загруженные биржи
 
 }; //class Core
 
