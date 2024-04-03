@@ -5,27 +5,26 @@
 #include <QJsonObject>
 #include <QCoreApplication>
 
-#include "mexcstockexchange.h"
+#include "gatestockexchange.h"
 
 using namespace TradingCat;
 using namespace Common;
 
-static const QUrl DEFAULT_SYMBOL_URL{"https://api.mexc.com/api/v3/defaultSymbols"};
+static const QUrl DEFAULT_SYMBOL_URL{"https://api.gateio.ws/api/v4/spot/currency_pairs"};
 static const qsizetype KLINES_SEND_COUNT = 100;
 
 QDateTime serverTime(const QByteArray& data);
 
-MexcStockExchange::MexcStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent)
+GateStockExchange::GateStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent)
     : _dbConnectionInfo(dbConnectionInfo)
     , _proxyList(proxyList)
 {
     qRegisterMetaType<TradingCat::StockExchangeKLinesList>("StockExchangeKLinesList");
 
-    _headers.insert(QByteArray{"X-MEXC-APIKEY"}, QByteArray{""});
     _headers.insert(QByteArray{"Content-Type"}, QByteArray{"application/json"});
     _headers.insert(QByteArray{"User-Agent"}, QCoreApplication::applicationName().toUtf8());
 
-    _id.name = "MEXC";
+    _id.name = "GATE";
 
     _klineTypes.insert(KLineType::MIN1);
     _klineTypes.insert(KLineType::MIN5);
@@ -37,9 +36,9 @@ MexcStockExchange::MexcStockExchange(const Common::DBConnectionInfo& dbConnectio
     _klineTypes.insert(KLineType::DAY1);
 }
 
-void MexcStockExchange::start()
+void GateStockExchange::start()
 {
-    if (!Common::connectToDB(_db, _dbConnectionInfo, "MEXCDB"))
+    if (!Common::connectToDB(_db, _dbConnectionInfo, "GATEDB"))
     {
         emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, connectDBErrorString(_db));
 
@@ -55,8 +54,6 @@ void MexcStockExchange::start()
     QObject::connect(_httpSSLQuery, SIGNAL(errorOccurred(QNetworkReply::NetworkError, quint64, const QString&, quint64)),
                      SLOT(errorOccurredHTTP(QNetworkReply::NetworkError, quint64, const QString&, quint64)));
 
-    sendUpdateMoney();
-
     //Update money list
     _updateMoneyTimer = new QTimer();
 
@@ -67,7 +64,7 @@ void MexcStockExchange::start()
     sendUpdateMoney();
 }
 
-void MexcStockExchange::stop()
+void GateStockExchange::stop()
 {
     for (const auto& kline: _moneyKLine)
     {
@@ -85,7 +82,7 @@ void MexcStockExchange::stop()
     emit finished();
 }
 
-void MexcStockExchange::getAnswerHTTP(const QByteArray &answer, quint64 id)
+void GateStockExchange::getAnswerHTTP(const QByteArray &answer, quint64 id)
 {
     if (id != _currentRequestID)
     {
@@ -109,17 +106,17 @@ void MexcStockExchange::getAnswerHTTP(const QByteArray &answer, quint64 id)
     _currentRequestType = RequestType::NONE;
 }
 
-void MexcStockExchange::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
+void GateStockExchange::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
 {
     if (id !=  _currentRequestID)
     {
         return;
     }
 
-    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("MEXC: HTTP error. Message: %2. Request id: %3")
-                                                         .arg(code)
-                                                         .arg(msg)
-                                                         .arg(id));
+    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: HTTP error. Message: %2. Request id: %3")
+                                                        .arg(code)
+                                                        .arg(msg)
+                                                        .arg(id));
     switch (_currentRequestType)
     {
     case RequestType::DEFAULT_SYMBOLS:
@@ -135,15 +132,15 @@ void MexcStockExchange::errorOccurredHTTP(QNetworkReply::NetworkError code, quin
     _currentRequestType = RequestType::NONE;
 }
 
-void MexcStockExchange::errorOccurredMoneyKLine(const KLineID &id, const QString &msg)
+void GateStockExchange::errorOccurredMoneyKLine(const KLineID &id, const QString &msg)
 {
-    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("MEXC: Money KLine error. Money: %1. Interval: %2. Message: %3")
+    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: Money KLine error. Money: %1. Interval: %2. Message: %3")
                                                         .arg(id.symbol)
                                                         .arg(KLineTypeToString(id.type))
                                                         .arg(msg));
 }
 
-void MexcStockExchange::getKLinesMoney(const KLinesList &klines)
+void GateStockExchange::getKLinesMoney(const KLinesList &klines)
 {
     for (const auto& kline: klines)
     {
@@ -162,7 +159,7 @@ void MexcStockExchange::getKLinesMoney(const KLinesList &klines)
     }
 }
 
-MexcStockExchange::MoneySymbols MexcStockExchange::parseDefaultSymbol(const QByteArray &data)
+GateStockExchange::MoneySymbols GateStockExchange::parseDefaultSymbol(const QByteArray &data)
 {
     MoneySymbols result;
 
@@ -170,36 +167,33 @@ MexcStockExchange::MoneySymbols MexcStockExchange::parseDefaultSymbol(const QByt
     const auto doc = QJsonDocument::fromJson(data, &error);
     if (error.error != QJsonParseError::NoError)
     {
-        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("MEXC: JSON parse error. Message: %1")
-                                                             .arg(error.errorString()));
+        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: JSON parse error. Message: %1")
+                                                            .arg(error.errorString()));
 
         return result;
     }
 
-    const auto errCode = doc["code"].toString();
-    if (errCode != "")
+    const auto errCode = doc["label"].toString();
+    if (!errCode.isEmpty())
     {
-        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("MEXC: Stock excenge server error. Code: %1. Message: %2")
-                                                             .arg(errCode)
-                                                             .arg(doc["msg"].toString()));
+        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: Stock excenge server error. Code: %1. Message: %2")
+                                                            .arg(errCode)
+                                                            .arg(doc["message"].toString()));
 
         return result;
     }
 
-    const auto symbolsList = doc["data"].toArray();
+    const auto symbolsList = doc.array();
     for (const auto& symbol: symbolsList)
     {
-        const auto& tmp = symbol.toString();
-        if (!tmp.isEmpty())
-        {
-            result.insert(tmp);
-        }
+        const auto& symbolInfo = symbol.toObject();
+        result.insert(symbolInfo["id"].toString());
     }
 
     return result;
 }
 
-void MexcStockExchange::makeMoney(const MoneySymbols& symbolsList)
+void GateStockExchange::makeMoney(const MoneySymbols& symbolsList)
 {
     if (symbolsList.isEmpty())
     {
@@ -230,28 +224,28 @@ void MexcStockExchange::makeMoney(const MoneySymbols& symbolsList)
             quint32 interval = static_cast<qint64>(klineType);
 
             auto moneyLastStopKLine_it = _moneyLastStopKLine.find(klineID);
-            auto mexcKLine = new MexcKLine(klineID,
-                moneyLastStopKLine_it != _moneyLastStopKLine.end() ? moneyLastStopKLine_it.value() : QDateTime::currentDateTime(),
-                _httpSSLQuery);
+            auto gateKLine = new GateKLine(klineID,
+                                           moneyLastStopKLine_it != _moneyLastStopKLine.end() ? moneyLastStopKLine_it.value() : QDateTime::currentDateTime(),
+                                           _httpSSLQuery);
 
-            QObject::connect(mexcKLine, SIGNAL(getKLines(const TradingCat::KLinesList&)),
+            QObject::connect(gateKLine, SIGNAL(getKLines(const TradingCat::KLinesList&)),
                          SLOT(getKLinesMoney(const TradingCat::KLinesList&)));
 
-            QObject::connect(mexcKLine, SIGNAL(errorOccurred(const TradingCat::KLineID&, const QString&)),
-                             SLOT(errorOccurredMoneyKLine(const TradingCat::KLineID&, const QString&)));
-
-            QObject::connect(mexcKLine, SIGNAL(delisting(const TradingCat::KLineID&)),
+            QObject::connect(gateKLine, SIGNAL(errorOccurred(const TradingCat::KLineID&, const QString&)),
+                         SLOT(errorOccurredMoneyKLine(const TradingCat::KLineID&, const QString&)));
+           \
+            QObject::connect(gateKLine, SIGNAL(delisting(const TradingCat::KLineID&)),
                              SLOT(delisting(const TradingCat::KLineID&)));
 
-            _moneyKLine.insert(klineID, mexcKLine);
+            _moneyKLine.insert(klineID, gateKLine);
 
             if (klineID.type == KLineType::MIN1 || klineID.type == KLineType::MIN5)
             {
-                QTimer::singleShot((interval / symbolsList.size()) * i  * 10 + 10000, [mexcKLine](){ mexcKLine->start(); });
+                QTimer::singleShot((interval / symbolsList.size()) * i  * 10 + 10000, [gateKLine](){ gateKLine->start(); });
             }
             else
             {
-                QTimer::singleShot((interval / symbolsList.size()) * i + 10000, [mexcKLine](){ mexcKLine->start(); });
+                QTimer::singleShot((interval / symbolsList.size()) * i + 10000, [gateKLine](){ gateKLine->start(); });
             }
 
             ++addCount;
@@ -260,10 +254,10 @@ void MexcStockExchange::makeMoney(const MoneySymbols& symbolsList)
         ++i;
     }
 
-    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Total money on MEXC: %1 Added: %2").arg(i).arg(addCount));
+    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Total money on GATE: %1. Added: %2").arg(i).arg(addCount));
 }
 
-void MexcStockExchange::sendUpdateMoney()
+void GateStockExchange::sendUpdateMoney()
 {
     Q_CHECK_PTR(_httpSSLQuery);
 
@@ -271,7 +265,7 @@ void MexcStockExchange::sendUpdateMoney()
     _currentRequestType = RequestType::DEFAULT_SYMBOLS;
 }
 
-void MexcStockExchange::delisting(const KLineID &id)
+void GateStockExchange::delisting(const KLineID &id)
 {
     for (const auto klineType: _klineTypes)
     {
@@ -292,8 +286,7 @@ void MexcStockExchange::delisting(const KLineID &id)
     emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("GATE: Delisting money: %1").arg(id.symbol));
 }
 
-
-void MexcStockExchange::loadLastStopKLine()
+void GateStockExchange::loadLastStopKLine()
 {
     const auto queryText =
         QString("SELECT MONEY, KLINE_INTERVAL, LAST_CLOSE_DATE_TIME "

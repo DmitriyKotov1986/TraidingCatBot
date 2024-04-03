@@ -1,5 +1,5 @@
-#ifndef MEXCKLINE_H
-#define MEXCKLINE_H
+#ifndef GATEKLINE_H
+#define GATEKLINE_H
 
 //Qt
 #include <QObject>
@@ -13,20 +13,21 @@
 
 namespace TradingCat
 {
-class MexcKLine final
+
+class GateKLine final
     : public QObject
 {
     Q_OBJECT
 
 public:
-    MexcKLine() = delete;
-    MexcKLine(const MexcKLine&) = delete;
-    MexcKLine& operator=(const MexcKLine&) = delete;
-    MexcKLine(MexcKLine&&) = delete;
-    MexcKLine& operator=(MexcKLine&&) = delete;
+    GateKLine() = delete;
+    GateKLine(const GateKLine&) = delete;
+    GateKLine& operator=(const GateKLine&) = delete;
+    GateKLine(GateKLine&&) = delete;
+    GateKLine& operator=(GateKLine&&) = delete;
 
-    explicit MexcKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent = nullptr);
-    ~MexcKLine();
+    explicit GateKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent = nullptr);
+    ~GateKLine();
 
     void start();
     void stop();
@@ -46,7 +47,8 @@ private slots:
 
 private:
     KLinesList parseKLines(const QByteArray& data);
-    QUrl getUrl(quint16 count);
+    QUrl getUrl(quint32 count) const;
+    static QString KLineTypeToString(KLineType type);
 
 private:
     const KLineID _id;
@@ -67,6 +69,6 @@ private:
 
 };
 
-} //namespace TradingCat
+} // TradingCat
 
-#endif
+#endif // GATEKLINE_H

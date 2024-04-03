@@ -1,5 +1,6 @@
-#ifndef MEXCSTOCKEXCHANGE_H
-#define MEXCSTOCKEXCHANGE_H
+#ifndef KUCOINSTOCKEXCHANGE_H
+#define KUCOINSTOCKEXCHANGE_H
+
 
 //QT
 #include <QObject>
@@ -12,12 +13,12 @@
 #include "Common/httpsslquery.h"
 #include "Common/tdbloger.h"
 #include "types.h"
-#include "mexckline.h"
+#include "kucoinkline.h"
 
 namespace TradingCat
 {
 
-class MexcStockExchange
+class KucoinStockExchange
     : public QObject
 {
     Q_OBJECT
@@ -32,9 +33,9 @@ private:
     using MoneySymbols = QSet<QString>;
 
 public:
-    MexcStockExchange() = delete;
+    KucoinStockExchange() = delete;
 
-    explicit MexcStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent = nullptr);
+    explicit KucoinStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent = nullptr);
 
 public slots:
     void start();
@@ -43,7 +44,7 @@ public slots:
 signals:
     void sendLogMsg(Common::TDBLoger::MSG_CODE category, const QString& msg);
     void finished();
-    void getKLines(const TradingCat::StockExchangeKLinesList& klines);
+    void getKLines(const TradingCat::StockExchangeKLinesList& kline);
 
 private slots:
     void getAnswerHTTP(const QByteArray& answer, quint64 id);
@@ -72,7 +73,7 @@ private:
     quint64 _currentRequestID = 0;
     RequestType _currentRequestType = RequestType::NONE;
 
-    QHash<KLineID, MexcKLine*> _moneyKLine;
+    QHash<KLineID, KucoinKLine*> _moneyKLine;
     QHash<KLineID, QDateTime> _moneyLastStopKLine;
 
     TradingCat::StockExchangeKLinesList _klines;
@@ -82,4 +83,4 @@ private:
 
 } // //namespace TraidingCatBot
 
-#endif // MEXCSTOCKEXCHANGE_H
+#endif // KUCOINSTOCKEXCHANGE_H

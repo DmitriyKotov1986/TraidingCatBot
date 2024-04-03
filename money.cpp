@@ -1,16 +1,21 @@
+//STL
+#include <algorithm>
+
+//My
+#include "Common/httpsslquery.h"
+
 #include "money.h"
 
 using namespace TraidingCatBot;
 using namespace Common;
 
-MoneyKLine::MoneyKLine(const StockExchangeInfo& stockExchangeInfo, const KLineID& id, QObject *parent)
+MoneyKLine::MoneyKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, QObject *parent)
     : QObject{parent}
     , _id(id)
-    , _stockExchangeInfo(stockExchangeInfo)
+    , _lastKLineCloseTime(lastKLineCloseTime)
 {
-    Q_ASSERT(!id.stockExcahnge.isEmpty());
-    Q_ASSERT(!id.symbol.isEmpty());
-    Q_ASSERT(id.type != KLineType::UNKNOW);
+    Q_ASSERT(!_id.symbol.isEmpty());
+    Q_ASSERT(_id.type != KLineType::UNKNOW);
 
     qRegisterMetaType<TraidingCatBot::KLine>("KLine");
 }
@@ -22,23 +27,30 @@ MoneyKLine::~MoneyKLine()
 
 void MoneyKLine::start()
 {
-    auto HTTPSSLQuery = HTTPSSLQuery::create();
+    if (_id.type == KLineType::UNKNOW)
+    {
+        return;
+    }
 
-    QObject::connect(this, SIGNAL(sendHTTP(const QUrl&, TraidingCatBot::HTTPSSLQuery::RequestType, const QByteArray&, const TraidingCatBot::HTTPSSLQuery::Headers&, quint64)),
-                     HTTPSSLQuery, SLOT(send(const QUrl&, TraidingCatBot::HTTPSSLQuery::RequestType, const QByteArray&, const TraidingCatBot::HTTPSSLQuery::Headers&, quint64)), Qt::QueuedConnection);
-    QObject::connect(HTTPSSLQuery, SIGNAL(getAnswer(const QByteArray&, quint64)),
+    auto HTTPSSLQueryPool = HTTPSSLQueryPool::create();
+
+    QObject::connect(this, SIGNAL(sendHTTP(const QUrl&, Common::HTTPSSLQuery::RequestType, const QByteArray&, const Common::HTTPSSLQuery::Headers&, quint64)),
+                     HTTPSSLQueryPool, SLOT(send(const QUrl&, Common::HTTPSSLQuery::RequestType, const QByteArray&, const Common::HTTPSSLQuery::Headers&, quint64)), Qt::QueuedConnection);
+    QObject::connect(HTTPSSLQueryPool, SIGNAL(getAnswer(const QByteArray&, quint64)),
                      SLOT(getAnswerHTTP(const QByteArray&, quint64)), Qt::QueuedConnection);
-    QObject::connect(HTTPSSLQuery, SIGNAL(errorOccurred(QNetworkReply::NetworkError, const QString&, quint64)),
+    QObject::connect(HTTPSSLQueryPool, SIGNAL(errorOccurred(QNetworkReply::NetworkError, const QString&, quint64)),
                      SLOT(errorOccurredHTTP(QNetworkReply::NetworkError, const QString&, quint64)), Qt::QueuedConnection);
 
+    startKLine();
+
     _timer = new QTimer();
-    _timer->setSingleShot(true);
 
     QObject::connect(_timer, SIGNAL(timeout()), SLOT(run()));
 
-    run();
+    auto interval = static_cast<quint64>(_id.type);
+    _timer->start(_id.type == KLineType::MIN1 ? (interval * 5) : interval);
 
-    startKLine();
+    run();
 }
 
 void MoneyKLine::stop()
@@ -58,45 +70,54 @@ void MoneyKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
         return;
     }
 
-    const auto klines = parseKLines(answer);
+    auto klines = parseKLines(answer);
     if (klines.isEmpty())
     {
-        _timer->start(static_cast<quint64>(_id.type) / 2);
-
         return;
     }
 
-    QDateTime lastKLine;
+    std::sort(klines.begin(), klines.end(),
+        [](const auto& kline1, const auto& kline2)
+        {
+            return kline1.closeTime < kline1.closeTime;
+        });
+
     for (const auto& kline: klines)
     {
-        lastKLine = std::max(lastKLine, kline.closeTime);
+        if (kline.closeTime > _lastKLineCloseTime)
+        {
+            emit getKLine(kline);
 
-        emit getKLine(kline);
+            _lastKLineCloseTime = kline.closeTime;
+        }
     }
-
-    _timer->start(stockExchangeTime().secsTo(lastKLine.addSecs(static_cast<quint64>(_id.type))) + 1);
 }
 
 void MoneyKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, const QString &msg, quint64 id)
 {
-    if (id == _currentRequestID)
+    if (id != _currentRequestID)
     {
-        emit errorOccurred(_id, msg);
+        return;
     }
 
-    _timer->start(static_cast<quint64>(_id.type));
+    emit errorOccurred(_id, msg);
 }
 
 void MoneyKLine::run()
 {
-    _currentRequestID = HTTPSSLQuery::getId();
+    _currentRequestID = HTTPSSLQueryPool::getId();
 
-    emit sendHTTP(getUrl(1), HTTPSSLQuery::RequestType::GET, "", getHeaders(), _currentRequestID);
-}
+    quint32 count = (_lastKLineCloseTime.msecsTo(QDateTime::currentDateTime()) / static_cast<quint64>(_id.type)) + 1;
+    if (count > 2000)
+    {
+        count = 2000;
+    }
+    if (count == 0)
+    {
+        return;
+    }
 
-QDateTime MoneyKLine::stockExchangeTime() const
-{
-    return QDateTime::currentDateTime().addSecs(_stockExchangeInfo.timeShift);
+    emit sendHTTP(getUrl(count), HTTPSSLQuery::RequestType::GET, "", getHeaders(), _currentRequestID);
 }
 
 

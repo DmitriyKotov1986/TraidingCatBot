@@ -7,7 +7,7 @@
 #include <QRandomGenerator64>
 
 //My
-#include "mexckline.h"
+#include "kucoinkline.h"
 
 using namespace TradingCat;
 using namespace Common;
@@ -15,7 +15,7 @@ using namespace Common;
 static const quint64 TOO_MANY_REQUEST_CODE = 429;
 static const quint64 ACCEESS_DENIED_CODE = 403;
 
-MexcKLine::MexcKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent /*= nullptr */)
+KucoinKLine::KucoinKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent /*= nullptr */)
     : _id(id)
     , _httpSSLQuery(httpSSLQuery)
     , _lastKLineCloseTime(lastKLineCloseTime)
@@ -24,17 +24,16 @@ MexcKLine::MexcKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Com
 
     qRegisterMetaType<TradingCat::KLinesList>("KLinesList");
 
-    _headers.insert(QByteArray{"X-MEXC-APIKEY"}, QByteArray{""});
     _headers.insert(QByteArray{"Content-Type"}, QByteArray{"application/json"});
     _headers.insert(QByteArray{"User-Agent"}, QCoreApplication::applicationName().toUtf8());
 }
 
-MexcKLine::~MexcKLine()
+KucoinKLine::~KucoinKLine()
 {
     delete _timer;
 }
 
-void MexcKLine::start()
+void KucoinKLine::start()
 {
     if (_id.type == KLineType::UNKNOW)
     {
@@ -57,7 +56,7 @@ void MexcKLine::start()
     run();
 }
 
-void MexcKLine::stop()
+void KucoinKLine::stop()
 {
     if (_timer != nullptr)
     {
@@ -65,46 +64,56 @@ void MexcKLine::stop()
     }
 }
 
-KLinesList MexcKLine::parseKLines(const QByteArray &data)
+KLinesList KucoinKLine::parseKLines(const QByteArray &data)
 {
     KLinesList result;
     QJsonParseError error;
     const auto doc = QJsonDocument::fromJson(data, &error);
     if (error.error != QJsonParseError::NoError)
     {
-        emit errorOccurred(_id, QString("MEXC: JSON parse error: %1")
+        emit errorOccurred(_id, QString("KUCOIN: JSON parse error: %1")
                                     .arg(error.errorString()));
 
         return result;
     }
 
-    if (doc["msg"].toString() == "Invalid symbol.")
+    const auto errCode = doc["code"].toString();
+    if (errCode != "200000")
     {
-        emit delisting(_id);
+        if (errCode == "400100")
+        {
+            emit delisting(_id);
 
-        return result;
+            return result;
+        }
+        else
+        {
+            emit errorOccurred(_id, QString("KUCOIN: Stock excenge server error. Code: %1. Message: %2")
+                                                            .arg(errCode)
+                                                            .arg(doc["msg"].toString()));
+            return result;
+        }
     }
 
-    const auto object = doc.array();
-
-    for (const auto& kline: object)
+    for (const auto& kline: doc["data"].toArray())
     {
         const auto data = kline.toArray();
 
-        const auto openDateTime = QDateTime::fromMSecsSinceEpoch(data[0].toInteger());
-        const auto closeDateTime = QDateTime::fromMSecsSinceEpoch(data[6].toInteger());
+        const auto openDateTime = QDateTime::fromSecsSinceEpoch(data[0].toString().toLongLong());
+        const auto closeDateTime = openDateTime.addMSecs(static_cast<quint64>(_id.type));
 
         if (closeDateTime > _lastKLineCloseTime)
         {
             KLine tmp;
-            tmp.openTime = QDateTime::fromMSecsSinceEpoch(data[0].toInteger());
+            tmp.openTime = QDateTime::fromSecsSinceEpoch(data[0].toString().toLongLong());
             tmp.open = data[1].toString().toDouble();
-            tmp.high = data[2].toString().toDouble();
-            tmp.low = data[3].toString().toDouble();
-            tmp.close = data[4].toString().toDouble();
+            tmp.close = data[2].toString().toDouble();
+            tmp.high = data[3].toString().toDouble();
+            tmp.low = data[4].toString().toDouble();
             tmp.volume = data[5].toString().toDouble();
-            tmp.closeTime = QDateTime::fromMSecsSinceEpoch(data[6].toInteger());
-            tmp.quoteAssetVolume = data[7].toString().toDouble();
+            tmp.quoteAssetVolume = data[6].toString().toDouble();
+            tmp.closeTime = tmp.openTime.addMSecs(static_cast<quint64>(_id.type));
+
             tmp.id = _id;
 
             result.emplaceBack(std::move(tmp));
@@ -131,17 +140,40 @@ KLinesList MexcKLine::parseKLines(const QByteArray &data)
     return result;
 }
 
-QUrl MexcKLine::getUrl(quint16 count)
+QString KucoinKLine::KLineTypeToString(KLineType type)
 {
-    Q_ASSERT(count > 0 && count <= 2000);
+    switch (type)
+    {
+    case KLineType::MIN1: return "1min";
+    case KLineType::MIN5: return "5min";
+    case KLineType::MIN15: return "15min";
+    case KLineType::MIN30: return "30min";
+    case KLineType::MIN60: return "1hour";
+    case KLineType::HOUR4: return "4hour";
+    case KLineType::HOUR8: return "8hour";
+    case KLineType::DAY1: return "1day";
+    case KLineType::WEEK1: return "1week";
+    default:
+        Q_ASSERT(false);
+    }
 
-    return QUrl{QString("https://api.mexc.com/api/v3/klines?symbol=%1&interval=%2&limit=%3")
-                    .arg(_id.symbol)
-                    .arg(KLineTypeToString(_id.type))
-                    .arg(count)};
+    return "UNKNOW";
 }
 
-void MexcKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
+QUrl KucoinKLine::getUrl(const QDateTime& start, const QDateTime& end)
+{
+    Q_ASSERT(start.msecsTo(end) < 1500 * static_cast<qint64>(_id.type));
+
+   // if (_id.type == KLineType::MIN1 ) qDebug() << _id.symbol << start << end;
+
+    return QUrl{QString("https://api.kucoin.com/api/v1/market/candles?type=%1&symbol=%2&startAt=%3&endAt=%4")
+                    .arg(KucoinKLine::KLineTypeToString(_id.type))
+                    .arg(_id.symbol)
+                    .arg(start.toSecsSinceEpoch())
+                    .arg(end.toSecsSinceEpoch())};
+}
+
+void KucoinKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
 {
     Q_CHECK_PTR(_timer);
 
@@ -172,7 +204,7 @@ void MexcKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
     }
 }
 
-void MexcKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
+void KucoinKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
 {
     Q_CHECK_PTR(_timer);
 
@@ -196,20 +228,22 @@ void MexcKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serv
     _currentRequestID = 0;
 }
 
-void MexcKLine::run()
+void KucoinKLine::run()
 {
     if (_currentRequestID != 0) //предыдущая передача еще не заончилась, поэтому - пропускаем такт
     {
         return;
     }
 
-    quint32 count = (_lastKLineCloseTime.msecsTo(QDateTime::currentDateTime()) / static_cast<quint64>(_id.type)) + 2;
-    if (count > 2000)
+    auto start = _lastKLineCloseTime.addMSecs(-2 * static_cast<quint64>(_id.type));
+    auto end = QDateTime::currentDateTime();
+
+    if (start.msecsTo(end) > 1500 * static_cast<qint64>(_id.type))
     {
-        count = 2000;
+        start = end.addMSecs(-static_cast<quint64>(_id.type) * 1450);
     }
 
-    _currentRequestID = _httpSSLQuery->send(getUrl(count), HTTPSSLQuery::RequestType::GET, "", _headers);
+    _currentRequestID = _httpSSLQuery->send(getUrl(start, end), HTTPSSLQuery::RequestType::GET, "", _headers);
 }
 
 

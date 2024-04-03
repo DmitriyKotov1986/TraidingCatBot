@@ -1,8 +1,8 @@
 #include "types.h"
 
-using namespace TraidingCatBot;
+using namespace TradingCat;
 
-QString KLineTypeToString(TraidingCatBot::KLineType type)
+QString TradingCat::KLineTypeToString(KLineType type)
 {
     switch (type)
     {
@@ -15,14 +15,14 @@ QString KLineTypeToString(TraidingCatBot::KLineType type)
     case KLineType::HOUR8: return "8h";
     case KLineType::DAY1: return "1d";
     case KLineType::WEEK1: return "1w";
-    case KLineType::MONTH1: return "1M";
-    default:;
+    default:
+        Q_ASSERT(false);
     }
 
     return "UNKNOW";
 }
 
-KLineType stringToKLineType(const QString& type)
+KLineType TradingCat::stringToKLineType(const QString& type)
 {
     if (type == "1m")
     {
@@ -60,20 +60,51 @@ KLineType stringToKLineType(const QString& type)
     {
         return KLineType::WEEK1;
     }
-    else if (type == "1M")
-    {
-        return KLineType::MONTH1;
-    }
 
     return KLineType::UNKNOW;
 }
 
-double deltaKLine(const KLine &kline)
+double TradingCat::deltaKLine(const KLine &kline)
 {
     return ((kline.high - kline.low) / kline.low) * 100.0;
 }
 
-double volumeKLine(const KLine &kline)
+double TradingCat::volumeKLine(const KLine &kline)
 {
     return ((kline.open + kline.close) / 2) * kline.volume;
+}
+
+size_t TradingCat::qHash(const KLineID &key, size_t seed)
+{
+    return qHash(key.symbol) + 47 * static_cast<quint64>(key.type);
+}
+
+bool TradingCat::operator==(const KLineID &key1, const KLineID &key2)
+{
+    return (key1.symbol == key2.symbol) && (key1.type == key2.type);
+}
+
+size_t TradingCat::qHash(const StockExchangeID &key, size_t seed)
+{
+    return qHash(key.name);
+}
+
+bool TradingCat::operator==(const TradingCat::StockExchangeID& key1, const TradingCat::StockExchangeID& key2)
+{
+    return key1.name == key2.name;
+}
+
+QString TradingCat::getKLineTableName(const QString& stockExcangeName, const QString& moneyName, const QString& typeName)
+{
+    return QString("KLINES_%1_%2").arg(stockExcangeName).arg(typeName);
+}
+
+std::size_t std::hash<TradingCat::StockExchangeID>::operator()(const StockExchangeID &key) const noexcept
+{
+    return static_cast<size_t>(TradingCat::qHash(key, 0));
+}
+
+std::size_t std::hash<TradingCat::KLineID>::operator()(const KLineID &key) const noexcept
+{
+    return static_cast<size_t>(TradingCat::qHash(key, 0));
 }

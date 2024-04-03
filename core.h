@@ -5,12 +5,18 @@
 #include <QObject>
 #include <QHash>
 #include <QThread>
+#include <QTimer>
 
 //My
 #include "config.h"
-#include "stockexchange.h"
+#include "Common/tdbloger.h"
+#include "dbsaver.h"
+#include "appserver.h"
+#include "mexcstockexchange.h"
+#include "kucoinstockexchange.h"
+#include "gatestockexchange.h"
 
-namespace TraidingCatBot
+namespace TradingCat
 {
 
 class Core final
@@ -24,26 +30,59 @@ public:
 
 public slots:
     void start();      //запуск работы
+    void stop();
 
 signals:
     void stopAll();    //остановка
+    void finished();
 
-private:
+private slots:
     void loadStockExchenge();
 
 private:
-    struct StockExchangeInfo
+    struct MexcStockExchangeInfo
     {
-        StockExchange *stockEnchange = nullptr;
+        MexcStockExchange *mexcStockExchange = nullptr;
         QThread* thread = nullptr;
     };
 
+    struct KucoinStockExchangeInfo
+    {
+        KucoinStockExchange *kucoinStockExchange = nullptr;
+        QThread* thread = nullptr;
+    };
+
+    struct GateStockExchangeInfo
+    {
+        GateStockExchange *gateStockExchange = nullptr;
+        QThread* thread = nullptr;
+    };
+
+    struct DBSaverInfo
+    {
+        TradingCat::DBSaver *DBSaver = nullptr;
+        QThread *thread = nullptr;
+    };
+
+    struct AppServerInfo
+    {
+         AppServer *appServer = nullptr;
+         QThread *thread = nullptr;
+    };
+
 private:
-    Config *_cnf = nullptr;                             //Конфигурация
+    Config *_cnf = nullptr;                            //Конфигурация
+    Common::TDBLoger *_log = nullptr;
 
-    QThread *_HTTPSSLQueryThread = nullptr;            //поток обработки HTTP запросов
+    DBSaverInfo _DBSaver;                              //поток сохранения данных в БД
 
-    QHash<QString, StockExchangeInfo> _stockExchanges; //загруженные биржи
+    AppServerInfo _appServer;
+
+    MexcStockExchangeInfo _mexcStockExchange;
+    KucoinStockExchangeInfo _kucoinStockExchange;
+    GateStockExchangeInfo _gateStockExchange;
+
+    QTimer *_exitTimer = nullptr;
 
 }; //class Core
 

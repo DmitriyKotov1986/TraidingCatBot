@@ -4,8 +4,7 @@
 #include <QObject>
 
 //My
-#include "types.h"
-#include "Common/httpsslquery.h"
+
 
 namespace TraidingCatBot
 {
@@ -18,7 +17,7 @@ class MoneyKLine
 public:
     MoneyKLine() = delete;
 
-    explicit MoneyKLine(const StockExchangeInfo& stockExchangeInfo, const KLineID& id, QObject *parent = nullptr); //гарантируется что symbol не пустая строка
+    explicit MoneyKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *HTTPQObject *parent = nullptr); //гарантируется что symbol не пустая строка
     virtual ~MoneyKLine();
 
 public:
@@ -30,7 +29,7 @@ public:
 signals:
     //public
     void getKLine(const TraidingCatBot::KLine& KLine); //испускается когда получена новая свечка
-    void errorOccurred(const KLineID& id, const QString& msg);
+    void errorOccurred(const TraidingCatBot::KLineID& id, const QString& msg);
 
     //private
     void sendHTTP(const QUrl& url, Common::HTTPSSLQuery::RequestType type,
@@ -50,11 +49,9 @@ private slots:
     void run();
 
 private:
-    QDateTime stockExchangeTime() const;
-
-private:
     const KLineID _id;
-    const StockExchangeInfo _stockExchangeInfo;
+
+    QDateTime _lastKLineCloseTime;
 
     quint64 _currentRequestID = 0;
 
@@ -62,7 +59,5 @@ private:
 };
 
 } //namespace TraidingCatBot
-
-Q_DECLARE_METATYPE(TraidingCatBot::KLine)
 
 #endif // MONEY_H

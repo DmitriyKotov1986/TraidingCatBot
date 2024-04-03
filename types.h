@@ -5,36 +5,48 @@
 #include <QDateTime>
 #include <QVector>
 #include <QString>
+#include <QSet>
+#include <QHostAddress>
 
-namespace TraidingCatBot
+namespace TradingCat
 {
 
 enum class KLineType: qint64 //Тип свечи
 {
-    MIN1   = 1 * 60,     //1мин свеча
-    MIN5   = 5 * 60,     //5мин свеча
-    MIN15  = 15 * 60,    //15мин свеча
-    MIN30  = 30 * 60,    //30мин свеча
-    MIN60  = 60 * 60,    //60мин свеча
-    HOUR4  = 240 * 60,
-    HOUR8  = 480 * 60,
-    DAY1   = 1440 * 60,
-    WEEK1  = 10080 * 60,
-    MONTH1 = 43200 * 60,
+    MIN1   = 1 * 60 * 1000,     //1мин свеча
+    MIN5   = 5 * 60 * 1000,     //5мин свеча
+    MIN15  = 15 * 60 * 1000,    //15мин свеча
+    MIN30  = 30 * 60 * 1000,    //30мин свеча
+    MIN60  = 60 * 60  * 1000,    //60мин свеча
+    HOUR4  = 240 * 60 * 1000,
+    HOUR8  = 480 * 60 * 1000,
+    DAY1   = 1440 * 60 * 1000,
+    WEEK1  = 10080 * 60 * 1000,
     UNKNOW = 0      //неизвестный тип свечи
 };
+
+using KLineTypes = QSet<KLineType>;
+
+struct StockExchangeID
+{
+    QString name;
+};
+
+size_t qHash(const TradingCat::StockExchangeID& key, size_t seed);
+bool operator==(const TradingCat::StockExchangeID& key1, const TradingCat::StockExchangeID& key2);
 
 QString KLineTypeToString(KLineType type);
 KLineType stringToKLineType(const QString& type);
 
-using KLineTypes = QVector<KLineType>;
-
 struct KLineID
 {
     QString symbol;        //название монеты
-    QString stockExcahnge; //Название биржи
     KLineType type = KLineType::UNKNOW; //интервал свечи
 };
+
+size_t qHash(const TradingCat::KLineID& key, size_t seed);
+
+bool operator==(const TradingCat::KLineID& key1, const TradingCat::KLineID& key2);
 
 struct KLine //данные свечи
 {
@@ -49,22 +61,52 @@ struct KLine //данные свечи
     double quoteAssetVolume = 0.0;
 };
 
+struct StockExchangeKLine
+{
+    StockExchangeID stockExcahnge; //Название биржи
+    KLine kline;
+};
+
+using StockExchangeKLinesList = QList<TradingCat::StockExchangeKLine>;
+using KLinesList = QList<TradingCat::KLine>;
+
 double deltaKLine(const KLine &kline);
 double volumeKLine(const KLine &kline);
 
-using KLines = QVector<KLine>;
-
-struct StockExchangeInfo //глобальна информация про биржу
+struct ServerInfo
 {
-    qint64 timeShift = 0; //смещение времени биржи относительно времени сервера в секундах
-    qint64 ping = 0;      //пинг до сервера биржи
+    QHostAddress address;
+    quint32 port;
+    quint32 maxUsers;
+    QString rootDir = ".";
+    QString crtFileName;
+    QString keyFileName;
 };
 
-struct StockExchangeID
-{
-    QString name;
-};
+QString getKLineTableName(const QString& stockExcangeName, const QString& moneyName, const QString& typeName);
 
 } //namespace TraidingCatBot
+
+//HASH function for std container
+namespace std
+{
+    template<>
+    struct hash<TradingCat::KLineID>
+    {
+        size_t operator()(const TradingCat::KLineID& key) const noexcept;
+    };
+}
+
+namespace std
+{
+    template<>
+    struct hash<TradingCat::StockExchangeID>
+    {
+        size_t operator()(const TradingCat::StockExchangeID& key) const noexcept;
+    };
+}
+
+Q_DECLARE_METATYPE(TradingCat::StockExchangeKLinesList)
+Q_DECLARE_METATYPE(TradingCat::KLinesList)
 
 #endif // TYPES_H

@@ -1,5 +1,5 @@
-#ifndef MEXCKLINE_H
-#define MEXCKLINE_H
+#ifndef KUCOINKLINE_H
+#define KUCOINKLINE_H
 
 //Qt
 #include <QObject>
@@ -13,20 +13,21 @@
 
 namespace TradingCat
 {
-class MexcKLine final
+
+class KucoinKLine final
     : public QObject
 {
     Q_OBJECT
 
 public:
-    MexcKLine() = delete;
-    MexcKLine(const MexcKLine&) = delete;
-    MexcKLine& operator=(const MexcKLine&) = delete;
-    MexcKLine(MexcKLine&&) = delete;
-    MexcKLine& operator=(MexcKLine&&) = delete;
+    KucoinKLine() = delete;
+    KucoinKLine(const KucoinKLine&) = delete;
+    KucoinKLine& operator=(const KucoinKLine&) = delete;
+    KucoinKLine(KucoinKLine&&) = delete;
+    KucoinKLine& operator=(KucoinKLine&&) = delete;
 
-    explicit MexcKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent = nullptr);
-    ~MexcKLine();
+    explicit KucoinKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent = nullptr);
+    ~KucoinKLine();
 
     void start();
     void stop();
@@ -46,7 +47,8 @@ private slots:
 
 private:
     KLinesList parseKLines(const QByteArray& data);
-    QUrl getUrl(quint16 count);
+    QUrl getUrl(const QDateTime& start, const QDateTime& end);
+    QString KLineTypeToString(KLineType type);
 
 private:
     const KLineID _id;
@@ -69,4 +71,4 @@ private:
 
 } //namespace TradingCat
 
-#endif
+#endif // KUCOINKLINE_H
