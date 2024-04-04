@@ -29,12 +29,12 @@ KucoinStockExchange::KucoinStockExchange(const Common::DBConnectionInfo& dbConne
 
     _klineTypes.insert(KLineType::MIN1);
     _klineTypes.insert(KLineType::MIN5);
-    _klineTypes.insert(KLineType::MIN15);
-    _klineTypes.insert(KLineType::MIN30);
-    _klineTypes.insert(KLineType::MIN60);
-    _klineTypes.insert(KLineType::HOUR4);
-    _klineTypes.insert(KLineType::HOUR8);
-    _klineTypes.insert(KLineType::DAY1);
+//    _klineTypes.insert(KLineType::MIN15);
+ //   _klineTypes.insert(KLineType::MIN30);
+ //   _klineTypes.insert(KLineType::MIN60);
+ //   _klineTypes.insert(KLineType::HOUR4);
+ //   _klineTypes.insert(KLineType::HOUR8);
+ //   _klineTypes.insert(KLineType::DAY1);
 }
 
 void KucoinStockExchange::start()
@@ -226,7 +226,7 @@ void KucoinStockExchange::makeMoney(const MoneySymbols& symbolsList)
 
             auto moneyLastStopKLine_it = _moneyLastStopKLine.find(klineID);
             auto kucoinKLine = new KucoinKLine(klineID,
-                                           moneyLastStopKLine_it != _moneyLastStopKLine.end() ? moneyLastStopKLine_it.value() : QDateTime::currentDateTime(),
+                                           moneyLastStopKLine_it != _moneyLastStopKLine.end() ? moneyLastStopKLine_it.value() : QDateTime::currentDateTime().addDays(-1),
                                            _httpSSLQuery);
 
             QObject::connect(kucoinKLine, SIGNAL(getKLines(const TradingCat::KLinesList&)),
@@ -240,7 +240,7 @@ void KucoinStockExchange::makeMoney(const MoneySymbols& symbolsList)
 
             _moneyKLine.insert(klineID, kucoinKLine);
 
-            if (klineID.type == KLineType::MIN1 || klineID.type == KLineType::MIN5)
+            if (klineID.type == KLineType::MIN1)
             {
                 QTimer::singleShot((interval / symbolsList.size()) * i  * 10 + 10000, [kucoinKLine](){ kucoinKLine->start(); });
             }

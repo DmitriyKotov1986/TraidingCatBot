@@ -126,6 +126,7 @@ Config::Config(const QString& configFileName) :
     _stockExcange_MEXC_enable = ini.value("MEXC_enable").toBool();
     _stockExcange_KUCOIN_enable = ini.value("KUCOIN_enable").toBool();
     _stockExcange_GATE_enable = ini.value("GATE_enable").toBool();
+    _stockExcange_BYBIT_enable = ini.value("BYBIT_enable").toBool();
 
     ini.endGroup();
 
@@ -212,6 +213,7 @@ bool Config::save()
     ini.setValue("MEXC_enable", _stockExcange_MEXC_enable);
     ini.setValue("KUCOIN_enable", _stockExcange_KUCOIN_enable);
     ini.setValue("GATE_enable", _stockExcange_GATE_enable);
+    ini.setValue("BYBIT_enable", _stockExcange_BYBIT_enable);
 
     ini.endGroup();
 
@@ -245,6 +247,11 @@ bool Config::stockExcange_KUCOIN_enable() const
 bool Config::stockExcange_GATE_enable() const
 {
     return _stockExcange_GATE_enable;
+}
+
+bool Config::stockExcange_BYBIT_enable() const
+{
+    return _stockExcange_BYBIT_enable;
 }
 
 const QList<ProxyInfo>& Config::proxy_info_list() const

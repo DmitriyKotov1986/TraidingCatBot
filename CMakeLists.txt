@@ -48,7 +48,9 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${COMMON_FILES}
     kucoinstockexchange.h kucoinstockexchange.cpp
     kucoinkline.h kucoinkline.cpp
     gatekline.h gatekline.cpp
-    gatestockexchange.h gatestockechan.cpp)
+    gatestockexchange.h gatestockechan.cpp
+    bybitkline.h bybitkline.cpp
+    bybitstockexchange.h bybitstockexchange.cpp)
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE

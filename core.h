@@ -15,6 +15,7 @@
 #include "mexcstockexchange.h"
 #include "kucoinstockexchange.h"
 #include "gatestockexchange.h"
+#include "bybitstockexchange.h"
 
 namespace TradingCat
 {
@@ -58,6 +59,12 @@ private:
         QThread* thread = nullptr;
     };
 
+    struct BybitStockExchangeInfo
+    {
+        BybitStockExchange *bybitStockExchange = nullptr;
+        QThread* thread = nullptr;
+    };
+
     struct DBSaverInfo
     {
         TradingCat::DBSaver *DBSaver = nullptr;
@@ -81,6 +88,7 @@ private:
     MexcStockExchangeInfo _mexcStockExchange;
     KucoinStockExchangeInfo _kucoinStockExchange;
     GateStockExchangeInfo _gateStockExchange;
+    BybitStockExchangeInfo _bybitStockExchange;
 
     QTimer *_exitTimer = nullptr;
 

@@ -5,17 +5,18 @@
 #include <QJsonObject>
 #include <QCoreApplication>
 
-#include "gatestockexchange.h"
+#include "bybitstockexchange.h"
 
 using namespace TradingCat;
 using namespace Common;
 
-static const QUrl DEFAULT_SYMBOL_URL{"https://api.gateio.ws/api/v4/spot/currency_pairs"};
+//static const QUrl DEFAULT_SYMBOL_URL1{"https://api.bybit.com/v5/market/instruments-info?category=linear"};
+static const QUrl DEFAULT_SYMBOL_URL{"https://api.bybit.com/v5/market/instruments-info?category=spot"};
 static const qsizetype KLINES_SEND_COUNT = 100;
 
 QDateTime serverTime(const QByteArray& data);
 
-GateStockExchange::GateStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent)
+BybitStockExchange::BybitStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent)
     : _dbConnectionInfo(dbConnectionInfo)
     , _proxyList(proxyList)
 {
@@ -24,7 +25,7 @@ GateStockExchange::GateStockExchange(const Common::DBConnectionInfo& dbConnectio
     _headers.insert(QByteArray{"Content-Type"}, QByteArray{"application/json"});
     _headers.insert(QByteArray{"User-Agent"}, QCoreApplication::applicationName().toUtf8());
 
-    _id.name = "GATE";
+    _id.name = "BYBIT";
 
     _klineTypes.insert(KLineType::MIN1);
     _klineTypes.insert(KLineType::MIN5);
@@ -32,13 +33,13 @@ GateStockExchange::GateStockExchange(const Common::DBConnectionInfo& dbConnectio
  //   _klineTypes.insert(KLineType::MIN30);
  //   _klineTypes.insert(KLineType::MIN60);
  //   _klineTypes.insert(KLineType::HOUR4);
- //   _klineTypes.insert(KLineType::HOUR8);
+ //   _klineTypes.insert(KLineType::HOUR8); //(!)Bybit not support 8h kline
  //   _klineTypes.insert(KLineType::DAY1);
 }
 
-void GateStockExchange::start()
+void BybitStockExchange::start()
 {
-    if (!Common::connectToDB(_db, _dbConnectionInfo, "GATEDB"))
+    if (!Common::connectToDB(_db, _dbConnectionInfo, "BYBITDB"))
     {
         emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, connectDBErrorString(_db));
 
@@ -64,7 +65,7 @@ void GateStockExchange::start()
     sendUpdateMoney();
 }
 
-void GateStockExchange::stop()
+void BybitStockExchange::stop()
 {
     for (const auto& kline: _moneyKLine)
     {
@@ -82,7 +83,7 @@ void GateStockExchange::stop()
     emit finished();
 }
 
-void GateStockExchange::getAnswerHTTP(const QByteArray &answer, quint64 id)
+void BybitStockExchange::getAnswerHTTP(const QByteArray &answer, quint64 id)
 {
     if (id != _currentRequestID)
     {
@@ -106,14 +107,14 @@ void GateStockExchange::getAnswerHTTP(const QByteArray &answer, quint64 id)
     _currentRequestType = RequestType::NONE;
 }
 
-void GateStockExchange::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
+void BybitStockExchange::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
 {
     if (id !=  _currentRequestID)
     {
         return;
     }
 
-    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: HTTP error. Message: %2. Request id: %3")
+    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("BYBIT: HTTP error. Message: %2. Request id: %3")
                                                         .arg(code)
                                                         .arg(msg)
                                                         .arg(id));
@@ -132,15 +133,15 @@ void GateStockExchange::errorOccurredHTTP(QNetworkReply::NetworkError code, quin
     _currentRequestType = RequestType::NONE;
 }
 
-void GateStockExchange::errorOccurredMoneyKLine(const KLineID &id, const QString &msg)
+void BybitStockExchange::errorOccurredMoneyKLine(const KLineID &id, const QString &msg)
 {
-    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: Money KLine error. Money: %1. Interval: %2. Message: %3")
+    emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("BYBIT: Money KLine error. Money: %1. Interval: %2. Message: %3")
                                                         .arg(id.symbol)
                                                         .arg(KLineTypeToString(id.type))
                                                         .arg(msg));
 }
 
-void GateStockExchange::getKLinesMoney(const KLinesList &klines)
+void BybitStockExchange::getKLinesMoney(const KLinesList &klines)
 {
     for (const auto& kline: klines)
     {
@@ -159,7 +160,7 @@ void GateStockExchange::getKLinesMoney(const KLinesList &klines)
     }
 }
 
-GateStockExchange::MoneySymbols GateStockExchange::parseDefaultSymbol(const QByteArray &data)
+BybitStockExchange::MoneySymbols BybitStockExchange::parseDefaultSymbol(const QByteArray &data)
 {
     MoneySymbols result;
 
@@ -167,33 +168,33 @@ GateStockExchange::MoneySymbols GateStockExchange::parseDefaultSymbol(const QByt
     const auto doc = QJsonDocument::fromJson(data, &error);
     if (error.error != QJsonParseError::NoError)
     {
-        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: JSON parse error. Message: %1")
+        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("BYBIT: JSON parse error. Message: %1")
                                                             .arg(error.errorString()));
 
         return result;
     }
 
-    const auto errCode = doc["label"].toString();
+    const auto errCode = doc["retCode"].toString();
     if (!errCode.isEmpty())
     {
-        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("GATE: Stock excenge server error. Code: %1. Message: %2")
+        emit sendLogMsg(TDBLoger::MSG_CODE::ERROR_CODE, QString("BYBIT: Stock excenge server error. Code: %1. Message: %2")
                                                             .arg(errCode)
-                                                            .arg(doc["message"].toString()));
+                                                            .arg(doc["retMsg"].toString()));
 
         return result;
     }
 
-    const auto symbolsList = doc.array();
+    const auto symbolsList = doc["result"].toObject()["list"].toArray();
     for (const auto& symbol: symbolsList)
     {
         const auto& symbolInfo = symbol.toObject();
-        result.insert(symbolInfo["id"].toString());
+        result.insert(symbolInfo["symbol"].toString());
     }
 
     return result;
 }
 
-void GateStockExchange::makeMoney(const MoneySymbols& symbolsList)
+void BybitStockExchange::makeMoney(const MoneySymbols& symbolsList)
 {
     if (symbolsList.isEmpty())
     {
@@ -224,28 +225,28 @@ void GateStockExchange::makeMoney(const MoneySymbols& symbolsList)
             quint32 interval = static_cast<qint64>(klineType);
 
             auto moneyLastStopKLine_it = _moneyLastStopKLine.find(klineID);
-            auto gateKLine = new GateKLine(klineID,
+            auto bybitKLine = new BybitKLine(klineID,
                                            moneyLastStopKLine_it != _moneyLastStopKLine.end() ? moneyLastStopKLine_it.value() : QDateTime::currentDateTime().addDays(-1),
                                            _httpSSLQuery);
 
-            QObject::connect(gateKLine, SIGNAL(getKLines(const TradingCat::KLinesList&)),
-                         SLOT(getKLinesMoney(const TradingCat::KLinesList&)));
+            QObject::connect(bybitKLine, SIGNAL(getKLines(const TradingCat::KLinesList&)),
+                             SLOT(getKLinesMoney(const TradingCat::KLinesList&)));
 
-            QObject::connect(gateKLine, SIGNAL(errorOccurred(const TradingCat::KLineID&, const QString&)),
-                         SLOT(errorOccurredMoneyKLine(const TradingCat::KLineID&, const QString&)));
-           \
-            QObject::connect(gateKLine, SIGNAL(delisting(const TradingCat::KLineID&)),
-                             SLOT(delisting(const TradingCat::KLineID&)));
+            QObject::connect(bybitKLine, SIGNAL(errorOccurred(const TradingCat::KLineID&, const QString&)),
+                             SLOT(errorOccurredMoneyKLine(const TradingCat::KLineID&, const QString&)));
+            \
+            QObject::connect(bybitKLine, SIGNAL(delisting(const TradingCat::KLineID&)),
+                                 SLOT(delisting(const TradingCat::KLineID&)));
 
-            _moneyKLine.insert(klineID, gateKLine);
+            _moneyKLine.insert(klineID, bybitKLine);
 
             if (klineID.type == KLineType::MIN1)
             {
-                QTimer::singleShot((interval / symbolsList.size()) * i  * 10 + 10000, [gateKLine](){ gateKLine->start(); });
+                QTimer::singleShot((interval / symbolsList.size()) * i  * 10 + 10000, [bybitKLine](){ bybitKLine->start(); });
             }
             else
             {
-                QTimer::singleShot((interval / symbolsList.size()) * i + 10000, [gateKLine](){ gateKLine->start(); });
+                QTimer::singleShot((interval / symbolsList.size()) * i + 10000, [bybitKLine](){ bybitKLine->start(); });
             }
 
             ++addCount;
@@ -254,10 +255,10 @@ void GateStockExchange::makeMoney(const MoneySymbols& symbolsList)
         ++i;
     }
 
-    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Total money on GATE: %1. Added: %2").arg(i).arg(addCount));
+    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Total money on BYBIT: %1. Added: %2").arg(i).arg(addCount));
 }
 
-void GateStockExchange::sendUpdateMoney()
+void BybitStockExchange::sendUpdateMoney()
 {
     Q_CHECK_PTR(_httpSSLQuery);
 
@@ -265,7 +266,7 @@ void GateStockExchange::sendUpdateMoney()
     _currentRequestType = RequestType::DEFAULT_SYMBOLS;
 }
 
-void GateStockExchange::delisting(const KLineID &id)
+void BybitStockExchange::delisting(const KLineID &id)
 {
     for (const auto klineType: _klineTypes)
     {
@@ -283,10 +284,10 @@ void GateStockExchange::delisting(const KLineID &id)
         _moneyKLine.erase(moneyKLine_it);
     }
 
-    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("GATE: Delisting money: %1").arg(id.symbol));
+    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("BYBIT: Delisting money: %1").arg(id.symbol));
 }
 
-void GateStockExchange::loadLastStopKLine()
+void BybitStockExchange::loadLastStopKLine()
 {
     const auto queryText =
         QString("SELECT MONEY, KLINE_INTERVAL, LAST_CLOSE_DATE_TIME "

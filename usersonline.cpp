@@ -217,7 +217,7 @@ void UsersOnline::checkKLine(const StockExchangeKLine &kline)
         {
             if (!onlineUser->klinesDetectedList.isFull)
             {
-                emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE,
+                emit sendLogMsg(TDBLoger::MSG_CODE::WARNING_CODE,
                                 QString("Too many detect KLines for user. Some events was been skiped. Session ID: %1 User: %2")
                                     .arg(onlineUser_it.key())
                                     .arg(onlineUser_it.value()->user));
@@ -246,7 +246,7 @@ void UsersOnline::checkKLine(const StockExchangeKLine &kline)
 
             onlineUser->klinesDetectedList.detectedKLines.emplaceBack(std::move(tmp));
 
-            emit sendLogMsg(TDBLoger::MSG_CODE::WARNING_CODE,
+            emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE,
                             QString("Detect KLine for user. Session ID: %1 User: %2 StockExchange: %3 Money: %4 Interval: %5")
                                 .arg(onlineUser_it.key())
                                 .arg(onlineUser_it.value()->user)

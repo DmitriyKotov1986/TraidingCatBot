@@ -192,12 +192,12 @@ void KucoinKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
 
     emit getKLines(klines);
 
-    if (_HTTPRequestAAfterError > 0)
+    if (_HTTPRequestAfterError > 0)
     {
-        --_HTTPRequestAAfterError;
-        if (_HTTPRequestAAfterError == 0)
+        --_HTTPRequestAfterError;
+        if (_HTTPRequestAfterError == 0)
         {
-            _HTTPRequestAAfterError = -1;
+            _HTTPRequestAfterError = -1;
             const auto interval = static_cast<quint64>(_id.type);
             _timer->setInterval(interval);
         }
@@ -221,7 +221,7 @@ void KucoinKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 se
         {
             const auto interval = static_cast<quint64>(_id.type);
             _timer->setInterval(_timer->interval() + interval);
-            _HTTPRequestAAfterError = QRandomGenerator64::global()->bounded(30, 300);
+            _HTTPRequestAfterError = QRandomGenerator64::global()->bounded(30, 300);
         }
     }
 

@@ -7,7 +7,7 @@
 #include <QRandomGenerator64>
 
 //My
-#include "mexckline.h"
+#include "bybitkline.h"
 
 using namespace TradingCat;
 using namespace Common;
@@ -15,7 +15,7 @@ using namespace Common;
 static const quint64 TOO_MANY_REQUEST_CODE = 429;
 static const quint64 ACCEESS_DENIED_CODE = 403;
 
-MexcKLine::MexcKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent /*= nullptr */)
+BybitKLine::BybitKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent /*= nullptr */)
     : _id(id)
     , _httpSSLQuery(httpSSLQuery)
     , _lastKLineCloseTime(lastKLineCloseTime)
@@ -24,17 +24,16 @@ MexcKLine::MexcKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Com
 
     qRegisterMetaType<TradingCat::KLinesList>("KLinesList");
 
-    _headers.insert(QByteArray{"X-MEXC-APIKEY"}, QByteArray{""});
     _headers.insert(QByteArray{"Content-Type"}, QByteArray{"application/json"});
     _headers.insert(QByteArray{"User-Agent"}, QCoreApplication::applicationName().toUtf8());
 }
 
-MexcKLine::~MexcKLine()
+BybitKLine::~BybitKLine()
 {
     delete _timer;
 }
 
-void MexcKLine::start()
+void BybitKLine::start()
 {
     if (_id.type == KLineType::UNKNOW)
     {
@@ -50,14 +49,14 @@ void MexcKLine::start()
 
     QObject::connect(_timer, SIGNAL(timeout()), SLOT(run()));
 
-    auto interval = static_cast<quint64>(_id.type);
+    const auto interval = static_cast<quint64>(_id.type);
 
     _timer->start(interval);
 
     run();
 }
 
-void MexcKLine::stop()
+void BybitKLine::stop()
 {
     if (_timer != nullptr)
     {
@@ -65,39 +64,57 @@ void MexcKLine::stop()
     }
 }
 
-KLinesList MexcKLine::parseKLines(const QByteArray &data)
+KLinesList BybitKLine::parseKLines(const QByteArray &data)
 {
     KLinesList result;
     QJsonParseError error;
     const auto doc = QJsonDocument::fromJson(data, &error);
     if (error.error != QJsonParseError::NoError)
     {
-        emit errorOccurred(_id, QString("MEXC: JSON parse error: %1")
+        emit errorOccurred(_id, QString("BYBIT: JSON parse error: %1")
                                     .arg(error.errorString()));
 
         return result;
     }
 
-    const auto object = doc.array();
+    const auto errCode = doc["retCode"].toInt();
+    if (errCode != 0)
+    {
+        if (errCode == 10001)
+        {
+            emit delisting(_id);
 
-    for (const auto& kline: object)
+            return result;
+        }
+        else
+        {
+            emit errorOccurred(_id, QString("BYBIT: Stock excenge server error. Code: %1. Message: %2")
+                                        .arg(errCode)
+                                        .arg(doc["retMsg"].toString()));
+            return result;
+        }
+    }
+
+    const auto klines= doc["result"].toObject()["list"].toArray();
+    for (const auto& kline: klines)
     {
         const auto data = kline.toArray();
 
-        const auto openDateTime = QDateTime::fromMSecsSinceEpoch(data[0].toInteger());
-        const auto closeDateTime = QDateTime::fromMSecsSinceEpoch(data[6].toInteger());
+        const auto openDateTime = QDateTime::fromMSecsSinceEpoch(data[0].toString().toLongLong());
+        const auto closeDateTime = openDateTime.addMSecs(static_cast<quint64>(_id.type));
 
         if (closeDateTime > _lastKLineCloseTime)
         {
             KLine tmp;
-            tmp.openTime = QDateTime::fromMSecsSinceEpoch(data[0].toInteger());
+            tmp.openTime = openDateTime;
             tmp.open = data[1].toString().toDouble();
             tmp.high = data[2].toString().toDouble();
             tmp.low = data[3].toString().toDouble();
             tmp.close = data[4].toString().toDouble();
             tmp.volume = data[5].toString().toDouble();
-            tmp.closeTime = QDateTime::fromMSecsSinceEpoch(data[6].toInteger());
-            tmp.quoteAssetVolume = data[7].toString().toDouble();
+            tmp.quoteAssetVolume = data[6].toString().toDouble();
+            tmp.closeTime = closeDateTime;
+
             tmp.id = _id;
 
             result.emplaceBack(std::move(tmp));
@@ -124,17 +141,38 @@ KLinesList MexcKLine::parseKLines(const QByteArray &data)
     return result;
 }
 
-QUrl MexcKLine::getUrl(quint16 count)
+QString BybitKLine::KLineTypeToString(KLineType type)
 {
-    Q_ASSERT(count > 0 && count <= 2000);
+    //1,3,5,15,30,60,120,240,360,720,D,M,W
+    switch (type)
+    {
+    case KLineType::MIN1: return "1";
+    case KLineType::MIN5: return "5";
+    case KLineType::MIN15: return "15";
+    case KLineType::MIN30: return "30";
+    case KLineType::MIN60: return "60";
+    case KLineType::HOUR4: return "240";
+    case KLineType::HOUR8: return "720"; //(!) У bybit нет 8 часовых свечей
+    case KLineType::DAY1: return "D";
+    case KLineType::WEEK1: return "W";
+    default:
+        Q_ASSERT(false);
+    }
 
-    return QUrl{QString("https://api.mexc.com/api/v3/klines?symbol=%1&interval=%2&limit=%3")
+    return "UNKNOW";
+}
+
+QUrl BybitKLine::getUrl(quint32 count) const
+{
+    Q_ASSERT(count > 0 && count <= 1000);
+
+    return QUrl{QString("https://api.bybit.com/v5/market/kline?category=spot&symbol=%1&interval=%2&limit=%3")
                     .arg(_id.symbol)
-                    .arg(KLineTypeToString(_id.type))
+                    .arg(BybitKLine::KLineTypeToString(_id.type))
                     .arg(count)};
 }
 
-void MexcKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
+void BybitKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
 {
     Q_CHECK_PTR(_timer);
 
@@ -165,19 +203,12 @@ void MexcKLine::getAnswerHTTP(const QByteArray &answer, quint64 id)
     }
 }
 
-void MexcKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
+void BybitKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serverCode, const QString &msg, quint64 id)
 {
     Q_CHECK_PTR(_timer);
 
     if (id != _currentRequestID)
     {
-        return;
-    }
-
-    if (serverCode == 400)
-    {
-        emit delisting(_id);
-
         return;
     }
 
@@ -196,7 +227,7 @@ void MexcKLine::errorOccurredHTTP(QNetworkReply::NetworkError code, quint64 serv
     _currentRequestID = 0;
 }
 
-void MexcKLine::run()
+void BybitKLine::run()
 {
     if (_currentRequestID != 0) //предыдущая передача еще не заончилась, поэтому - пропускаем такт
     {
@@ -204,9 +235,9 @@ void MexcKLine::run()
     }
 
     quint32 count = (_lastKLineCloseTime.msecsTo(QDateTime::currentDateTime()) / static_cast<quint64>(_id.type)) + 2;
-    if (count > 2000)
+    if (count > 1000)
     {
-        count = 2000;
+        count = 1000;
     }
 
     _currentRequestID = _httpSSLQuery->send(getUrl(count), HTTPSSLQuery::RequestType::GET, "", _headers);

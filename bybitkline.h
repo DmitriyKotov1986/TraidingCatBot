@@ -1,5 +1,5 @@
-#ifndef GATEKLINE_H
-#define GATEKLINE_H
+#ifndef BYBITKLINE_H
+#define BYBITKLINE_H
 
 //Qt
 #include <QObject>
@@ -14,20 +14,20 @@
 namespace TradingCat
 {
 
-class GateKLine final
+class BybitKLine final
     : public QObject
 {
     Q_OBJECT
 
 public:
-    GateKLine() = delete;
-    GateKLine(const GateKLine&) = delete;
-    GateKLine& operator=(const GateKLine&) = delete;
-    GateKLine(GateKLine&&) = delete;
-    GateKLine& operator=(GateKLine&&) = delete;
+    BybitKLine() = delete;
+    BybitKLine(const BybitKLine&) = delete;
+    BybitKLine& operator=(const BybitKLine&) = delete;
+    BybitKLine(BybitKLine&&) = delete;
+    BybitKLine& operator=(BybitKLine&&) = delete;
 
-    explicit GateKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent = nullptr);
-    ~GateKLine();
+    explicit BybitKLine(const KLineID& id, const QDateTime& lastKLineCloseTime, Common::HTTPSSLQuery *httpSSLQuery, QObject *parent = nullptr);
+    ~BybitKLine();
 
     void start();
     void stop();
@@ -71,4 +71,4 @@ private:
 
 } // TradingCat
 
-#endif // GATEKLINE_H
+#endif // BYBITKLINE_H

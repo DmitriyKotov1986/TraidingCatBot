@@ -62,7 +62,7 @@ private:
 
     QTimer *_timer = nullptr;
 
-    qint64 _HTTPRequestAAfterError = -1;
+    qint64 _HTTPRequestAfterError = -1;
 
 private:
     Common::HTTPSSLQuery::Headers _headers;

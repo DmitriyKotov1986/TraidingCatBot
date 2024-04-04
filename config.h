@@ -34,6 +34,7 @@ public:
     bool stockExcange_MEXC_enable() const;
     bool stockExcange_KUCOIN_enable() const;
     bool stockExcange_GATE_enable() const;
+    bool stockExcange_BYBIT_enable() const;
 
     //[PROXY_N]
     const QList<Common::ProxyInfo>& proxy_info_list() const;
@@ -56,6 +57,7 @@ private:
     bool _stockExcange_MEXC_enable = true;
     bool _stockExcange_KUCOIN_enable = true;
     bool _stockExcange_GATE_enable = true;
+    bool _stockExcange_BYBIT_enable = true;
 
     //[PROXY_N]
     QList<Common::ProxyInfo> _proxy_info_list;

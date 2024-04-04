@@ -236,6 +236,34 @@ void Core::loadStockExchenge()
 
         _log->sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Add stock exchange: GATE"));
     }
+
+    if (_cnf->stockExcange_BYBIT_enable())
+    {
+        _bybitStockExchange.bybitStockExchange = new BybitStockExchange(_cnf->db_ConnectionInfo(), proxyList);
+        _bybitStockExchange.thread = new QThread();
+        _bybitStockExchange.bybitStockExchange->moveToThread(_bybitStockExchange.thread);
+
+        QObject::connect(_bybitStockExchange.thread, SIGNAL(started()),
+                         _bybitStockExchange.bybitStockExchange, SLOT(start()), Qt::DirectConnection);
+
+        QObject::connect(this, SIGNAL(stopAll()),
+                         _bybitStockExchange.bybitStockExchange, SLOT(stop()), Qt::QueuedConnection);
+        QObject::connect(_bybitStockExchange.bybitStockExchange, SIGNAL(finished()),
+                         _bybitStockExchange.thread, SLOT(quit()), Qt::DirectConnection);
+
+        QObject::connect(_bybitStockExchange.bybitStockExchange, SIGNAL(sendLogMsg(Common::TDBLoger::MSG_CODE, const QString&)),
+                         _log, SLOT(sendLogMsg(Common::TDBLoger::MSG_CODE, const QString&)), Qt::QueuedConnection);
+
+        QObject::connect(_bybitStockExchange.bybitStockExchange, SIGNAL(getKLines(const TradingCat::StockExchangeKLinesList&)),
+                         _DBSaver.DBSaver, SLOT(getKLines(const TradingCat::StockExchangeKLinesList&)), Qt::QueuedConnection);
+
+        QObject::connect(_bybitStockExchange.bybitStockExchange, SIGNAL(getKLines(const TradingCat::StockExchangeKLinesList&)),
+                         _appServer.appServer, SLOT(getKLines(const TradingCat::StockExchangeKLinesList&)), Qt::QueuedConnection);
+
+        _bybitStockExchange.thread->start();
+
+        _log->sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Add stock exchange: BYBIT"));
+    }
 }
 
 

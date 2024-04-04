@@ -392,6 +392,14 @@ void  AppServer::loadKLines()
 
     _klines.push_back(klineGATE);
 
+    QJsonObject klineBYBIT;
+    klineBYBIT.insert("StockExchange", "BYBIT");
+    klineBYBIT.insert("Money", "ALL");
+    klineBYBIT.insert("Interval", KLineTypeToString(KLineType::MIN1));
+
+    _klines.push_back(klineBYBIT);
+
+
     _db.commit();
 
     return;

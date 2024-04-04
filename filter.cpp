@@ -151,6 +151,17 @@ void Filter::defaultFilter()
 
         addFilter(stockExchangeID, klineID, 8.0, 2000.0);
     }
+
+    {
+        KLineID klineID;
+        klineID.symbol = "ALL";
+        klineID.type = KLineType::MIN1;
+
+        StockExchangeID stockExchangeID;
+        stockExchangeID.name = "BYBIT";
+
+        addFilter(stockExchangeID, klineID, 5.0, 1000.0);
+    }
 }
 
 void Filter::clear()
