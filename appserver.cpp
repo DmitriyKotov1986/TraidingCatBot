@@ -371,6 +371,9 @@ void  AppServer::loadKLines()
         _klines.push_back(kline);
     }
 
+    _db.commit();
+
+    //MEXC
     QJsonObject klineMEXC;
     klineMEXC.insert("StockExchange", "MEXC");
     klineMEXC.insert("Money", "ALL");
@@ -378,6 +381,7 @@ void  AppServer::loadKLines()
 
     _klines.push_back(klineMEXC);
 
+    //KUCOIN
     QJsonObject klineKUCOIN;
     klineKUCOIN.insert("StockExchange", "KUCOIN");
     klineKUCOIN.insert("Money", "ALL");
@@ -385,6 +389,7 @@ void  AppServer::loadKLines()
 
     _klines.push_back(klineKUCOIN);
 
+    //GATE
     QJsonObject klineGATE;
     klineGATE.insert("StockExchange", "GATE");
     klineGATE.insert("Money", "ALL");
@@ -392,6 +397,7 @@ void  AppServer::loadKLines()
 
     _klines.push_back(klineGATE);
 
+    //BYBIT
     QJsonObject klineBYBIT;
     klineBYBIT.insert("StockExchange", "BYBIT");
     klineBYBIT.insert("Money", "ALL");
@@ -399,8 +405,13 @@ void  AppServer::loadKLines()
 
     _klines.push_back(klineBYBIT);
 
+    //BINANCE
+    QJsonObject klineBINANCE;
+    klineBINANCE.insert("StockExchange", "BINANCE");
+    klineBINANCE.insert("Money", "ALL");
+    klineBINANCE.insert("Interval", KLineTypeToString(KLineType::MIN1));
 
-    _db.commit();
+    _klines.push_back(klineBINANCE);
 
     return;
 }

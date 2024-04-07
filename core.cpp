@@ -264,8 +264,35 @@ void Core::loadStockExchenge()
 
         _log->sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Add stock exchange: BYBIT"));
     }
-}
 
+    if (_cnf->stockExcange_BINANCE_enable())
+    {
+        _binanceStockExchange.binanceStockExchange = new BinanceStockExchange(_cnf->db_ConnectionInfo(), proxyList);
+        _binanceStockExchange.thread = new QThread();
+        _binanceStockExchange.binanceStockExchange->moveToThread(_binanceStockExchange.thread);
+
+        QObject::connect(_binanceStockExchange.thread, SIGNAL(started()),
+                         _binanceStockExchange.binanceStockExchange, SLOT(start()), Qt::DirectConnection);
+
+        QObject::connect(this, SIGNAL(stopAll()),
+                         _binanceStockExchange.binanceStockExchange, SLOT(stop()), Qt::QueuedConnection);
+        QObject::connect(_binanceStockExchange.binanceStockExchange, SIGNAL(finished()),
+                         _binanceStockExchange.thread, SLOT(quit()), Qt::DirectConnection);
+
+        QObject::connect(_binanceStockExchange.binanceStockExchange, SIGNAL(sendLogMsg(Common::TDBLoger::MSG_CODE, const QString&)),
+                         _log, SLOT(sendLogMsg(Common::TDBLoger::MSG_CODE, const QString&)), Qt::QueuedConnection);
+
+        QObject::connect(_binanceStockExchange.binanceStockExchange, SIGNAL(getKLines(const TradingCat::StockExchangeKLinesList&)),
+                         _DBSaver.DBSaver, SLOT(getKLines(const TradingCat::StockExchangeKLinesList&)), Qt::QueuedConnection);
+
+        QObject::connect(_binanceStockExchange.binanceStockExchange, SIGNAL(getKLines(const TradingCat::StockExchangeKLinesList&)),
+                         _appServer.appServer, SLOT(getKLines(const TradingCat::StockExchangeKLinesList&)), Qt::QueuedConnection);
+
+        _binanceStockExchange.thread->start();
+
+        _log->sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Add stock exchange: BINANCE"));
+    }
+}
 
 
 

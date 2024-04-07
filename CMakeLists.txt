@@ -50,7 +50,9 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${COMMON_FILES}
     gatekline.h gatekline.cpp
     gatestockexchange.h gatestockechan.cpp
     bybitkline.h bybitkline.cpp
-    bybitstockexchange.h bybitstockexchange.cpp)
+    bybitstockexchange.h bybitstockexchange.cpp
+    binancekline.h binancekline.cpp
+    binancestockexchange.h binancestockexchange.cpp)
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE

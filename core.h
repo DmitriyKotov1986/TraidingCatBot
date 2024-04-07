@@ -16,6 +16,7 @@
 #include "kucoinstockexchange.h"
 #include "gatestockexchange.h"
 #include "bybitstockexchange.h"
+#include "binancestockexchange.h"
 
 namespace TradingCat
 {
@@ -65,6 +66,12 @@ private:
         QThread* thread = nullptr;
     };
 
+    struct BinanceStockExchangeInfo
+    {
+        BinanceStockExchange *binanceStockExchange = nullptr;
+        QThread* thread = nullptr;
+    };
+
     struct DBSaverInfo
     {
         TradingCat::DBSaver *DBSaver = nullptr;
@@ -89,6 +96,7 @@ private:
     KucoinStockExchangeInfo _kucoinStockExchange;
     GateStockExchangeInfo _gateStockExchange;
     BybitStockExchangeInfo _bybitStockExchange;
+    BinanceStockExchangeInfo _binanceStockExchange;
 
     QTimer *_exitTimer = nullptr;
 
