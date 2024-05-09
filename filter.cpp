@@ -195,15 +195,3 @@ void Filter::addFilter(const StockExchangeID &stockExchangeID, const KLineID &kl
     _filterData.push_back(filterData);
 }
 
-QString Filter::errorString()
-{
-    const QString tmp = _errorString;
-    _errorString.clear();
-
-    return tmp;
-}
-
-bool Filter::isError() const
-{
-    return !_errorString.isEmpty();
-}

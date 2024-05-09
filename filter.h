@@ -27,9 +27,6 @@ public:
 
     bool filter(const StockExchangeID& stockExchangeID, const KLineID& klineID, double delta, double volume);
 
-    QString errorString();
-    bool isError() const;
-
 private:
     void defaultFilter();
     void clear();
@@ -49,7 +46,6 @@ private:
 private:
     FilterDataList _filterData;
 
-    QString _errorString;
 };
 
 } //namespace TraidingCatBot

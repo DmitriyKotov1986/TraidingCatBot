@@ -83,7 +83,7 @@ Config::Config(const QString& configFileName) :
     _db_ConnectionInfo.db_DBName = ini.value("DataBase", "").toString();
     _db_ConnectionInfo.db_UserName = ini.value("UID", "").toString();
     _db_ConnectionInfo.db_Password = ini.value("PWD", "").toString();
-    _db_ConnectionInfo.db_ConnectOptions = ini.value("ConnectionOprions", "").toString();
+    _db_ConnectionInfo.db_ConnectOptions = ini.value("ConnectionOptions", "").toString();
     _db_ConnectionInfo.db_Port = ini.value("Port", "").toUInt();
     _db_ConnectionInfo.db_Host = ini.value("Host", "localhost").toString();
 

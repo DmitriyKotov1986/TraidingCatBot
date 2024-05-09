@@ -15,8 +15,6 @@ using namespace Common;
 static const QUrl DEFAULT_SYMBOL_URL{"https://api.binance.com/api/v3/exchangeInfo"};
 static const qsizetype KLINES_SEND_COUNT = 100;
 
-QDateTime serverTime(const QByteArray& data);
-
 BinanceStockExchange::BinanceStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent)
     : _dbConnectionInfo(dbConnectionInfo)
     , _proxyList(proxyList)
@@ -246,7 +244,7 @@ void BinanceStockExchange::makeMoney(const MoneySymbols& symbolsList)
         ++i;
     }
 
-    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Total money on BYBIT: %1. Added: %2").arg(i).arg(addCount));
+    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("Total money on BINANCE: %1. Added: %2").arg(i).arg(addCount));
 }
 
 void BinanceStockExchange::sendUpdateMoney()
@@ -270,12 +268,12 @@ void BinanceStockExchange::delisting(const KLineID &id)
         Q_ASSERT(moneyKLine_it != _moneyKLine.end());
 
         moneyKLine_it.value()->stop();
-        delete moneyKLine_it.value();
+        moneyKLine_it.value()->deleteLater();
 
         _moneyKLine.erase(moneyKLine_it);
     }
 
-    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("BYBIT: Delisting money: %1").arg(id.symbol));
+    emit sendLogMsg(TDBLoger::MSG_CODE::INFORMATION_CODE, QString("BINANCE: Delisting money: %1").arg(id.symbol));
 }
 
 void BinanceStockExchange::loadLastStopKLine()

@@ -13,8 +13,6 @@ using namespace Common;
 static const QUrl DEFAULT_SYMBOL_URL{"https://api.mexc.com/api/v3/defaultSymbols"};
 static const qsizetype KLINES_SEND_COUNT = 100;
 
-QDateTime serverTime(const QByteArray& data);
-
 MexcStockExchange::MexcStockExchange(const Common::DBConnectionInfo& dbConnectionInfo, Common::HTTPSSLQuery::ProxyList proxyList, QObject *parent)
     : _dbConnectionInfo(dbConnectionInfo)
     , _proxyList(proxyList)
@@ -284,7 +282,7 @@ void MexcStockExchange::delisting(const KLineID &id)
         Q_ASSERT(moneyKLine_it != _moneyKLine.end());
 
         moneyKLine_it.value()->stop();
-        delete moneyKLine_it.value();
+        moneyKLine_it.value()->deleteLater();
 
         _moneyKLine.erase(moneyKLine_it);
     }

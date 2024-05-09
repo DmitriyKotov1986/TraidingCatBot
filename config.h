@@ -15,7 +15,7 @@ namespace TradingCat
 class Config final
 {
 public:
-    static Config* config(const QString& configFileName = "");
+    static Config* config(const QString& configFileName = QString());
     static void deleteConfig();
 
 private:

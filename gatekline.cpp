@@ -80,7 +80,7 @@ KLinesList GateKLine::parseKLines(const QByteArray &data)
     const auto errCode = doc["label"].toString();
     if (!errCode.isEmpty())
     {
-        if (errCode == "INVALID_CURRENCY")
+        if (errCode == "INVALID_CURRENCY_PAIR")
         {
             emit delisting(_id);
 
